@@ -28,7 +28,22 @@ type Conf struct {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+	keys, ok := r.URL.Query()["context"]
+	if !ok || len(keys[0]) < 1 {
+		log.Println("Url Param 'context' is missing")
+		return
+	}
+
+	// Query()["key"] will return an array of items,
+	// we only want the single item.
+	key := keys[0]
+
+	if status, ok := statuses[string(key)]; ok {
+		http.ServeFile(w, r, "images/"+status+".svg")
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, "Context not known")
+	}
 }
 
 func parseConf() Conf {

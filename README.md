@@ -14,3 +14,28 @@ configured branch (e.g. master)
 It also exposes and endpoint to get a badge icon for any context for that commit.
 The endpoint will serve a badge icon (pending, failed, success) that can be used
 as a badge on the project's README file.
+
+## Build
+
+```
+$ make
+```
+
+## Run
+
+Put the required env variables in an `.env` file and run the docker image:
+
+Example .env file:
+
+```
+GITHUB_REPO=jimmykarily/github_branch_status
+GITHUB_TOKEN=your_github_token_here
+```
+
+and run:
+
+```
+$ docker run --env-file .env -p 8080:8080  -it jimmykarily/github_branch_status:latest
+```
+
+Now visit `127.0.0.1:8080?context=some_context` in your browser and enjoy your badge!
