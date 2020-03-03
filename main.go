@@ -20,11 +20,11 @@ func init() {
 }
 
 type Conf struct {
-	GithubRepo            string
-	Branch                string
-	UpdateIntervalSeconds int
-	Port                  string
-	GitHubToken           string
+	GithubRepo                     string
+	Branch                         string
+	UpdateIntervalSeconds, Timeout int
+	Port                           string
+	GitHubToken                    string
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +49,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 func parseConf() Conf {
 	var err error
 	var exists bool
-	var interval string
+	var interval, timeout string
 
 	if conf.GitHubToken, exists = os.LookupEnv("GITHUB_TOKEN"); !exists {
 		panic("GITHUB_TOKEN not set!")
@@ -63,12 +63,22 @@ func parseConf() Conf {
 	if interval, exists = os.LookupEnv("GITHUB_STATUS_UPDATE_INTERVAL"); !exists {
 		interval = "30" // Seconds
 	}
+
+	if timeout, exists = os.LookupEnv("CLIENT_TIMEOUT"); !exists {
+		timeout = "30" // Seconds
+	}
+
 	if conf.Port, exists = os.LookupEnv("PORT"); !exists {
 		conf.Port = "8080"
 	}
 	conf.UpdateIntervalSeconds, err = strconv.Atoi(interval)
 	if err != nil {
 		panic("GITHUB_STATUS_UPDATE_INTERVAL should be an integer: " + err.Error())
+	}
+
+	conf.Timeout, err = strconv.Atoi(timeout)
+	if err != nil {
+		panic("CLIENT_TIMEOUT should be an integer: " + err.Error())
 	}
 
 	return conf
@@ -149,7 +159,9 @@ func pollStatuses() {
 
 func main() {
 	parseConf()
-	client = &http.Client{}
+	client = &http.Client{
+		Timeout: time.Second * time.Duration(conf.Timeout),
+	}
 
 	go pollStatuses()
 
