@@ -27,7 +27,7 @@ type Conf struct {
 	GitHubToken                    string
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func stateHandler(w http.ResponseWriter, r *http.Request) {
 	keys, ok := r.URL.Query()["context"]
 	if !ok || len(keys[0]) < 1 {
 		log.Println("Url Param 'context' is missing")
@@ -38,8 +38,27 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// we only want the single item.
 	key := keys[0]
 
-	if status, ok := statuses[string(key)]; ok {
-		http.ServeFile(w, r, "images/"+status["state"]+".svg")
+	if context, ok := statuses[string(key)]; ok {
+		http.ServeFile(w, r, "images/"+context["state"]+".svg")
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(w, "Context not known")
+	}
+}
+
+func urlHandler(w http.ResponseWriter, r *http.Request) {
+	keys, ok := r.URL.Query()["context"]
+	if !ok || len(keys[0]) < 1 {
+		log.Println("Url Param 'context' is missing")
+		return
+	}
+
+	// Query()["key"] will return an array of items,
+	// we only want the single item.
+	key := keys[0]
+
+	if context, ok := statuses[string(key)]; ok {
+		http.Redirect(w, r, context["targetUrl"], 302)
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprint(w, "Context not known")
@@ -175,6 +194,7 @@ func main() {
 
 	go pollStatuses()
 
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/state", stateHandler)
+	http.HandleFunc("/url", urlHandler)
 	log.Fatal(http.ListenAndServe(":"+conf.Port, nil))
 }
