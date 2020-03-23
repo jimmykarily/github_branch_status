@@ -12,11 +12,11 @@ import (
 )
 
 var conf Conf
-var statuses map[string]string
+var statuses map[string]map[string]string
 var client *http.Client
 
 func init() {
-	statuses = map[string]string{}
+	statuses = map[string]map[string]string{}
 }
 
 type Conf struct {
@@ -39,7 +39,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	key := keys[0]
 
 	if status, ok := statuses[string(key)]; ok {
-		http.ServeFile(w, r, "images/"+status+".svg")
+		http.ServeFile(w, r, "images/"+status["state"]+".svg")
 	} else {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprint(w, "Context not known")
@@ -120,7 +120,7 @@ func updateStatuses() error {
 	if err != nil {
 		return err
 	}
-	uri := "https://api.github.com/repos/" + conf.GithubRepo + "/commits/" + commitSha + "/statuses"
+	uri := "https://api.github.com/repos/" + conf.GithubRepo + "/commits/" + commitSha + "/status"
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return err
@@ -133,13 +133,23 @@ func updateStatuses() error {
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
-	var newStatuses []map[string]string
-	json.Unmarshal([]byte(body), &newStatuses)
+	var responseBody map[string]interface{}
+	json.Unmarshal([]byte(body), &responseBody)
 
-	for _, status := range newStatuses {
-		state := status["state"]
-		context := status["context"]
-		statuses[context] = state
+	for _, status := range responseBody["statuses"].([]interface{}) {
+		statusMap := status.(map[string]interface{})
+
+		state := statusMap["state"].(string)
+		targetUrl := statusMap["target_url"].(string)
+		context := statusMap["context"].(string)
+		description := statusMap["description"].(string)
+
+		statuses[context] = map[string]string{
+			"state":       state,
+			"targetUrl":   targetUrl,
+			"context":     context,
+			"description": description,
+		}
 	}
 
 	return nil
